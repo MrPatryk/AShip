@@ -1,4 +1,5 @@
 ﻿using DigitalRuby.ThunderAndLightning;
+using DunGen;
 using GameNetcodeStuff;
 using HarmonyLib;
 using LC_API.GameInterfaceAPI.Features;
@@ -136,22 +137,18 @@ namespace ShipPlusA.Patches
                     }
                     return false;
                 }*/
-        [HarmonyPatch("ShockPatcherToolClientRpc")]
+  /*      [HarmonyPatch("ShockPatcherToolClientRpc")]
         [HarmonyPrefix]
-        public static void clrpc(NetworkObjectReference netObject,PatcherTool __instance)
+        public static void clrpc(NetworkObjectReference netObject)
         {
 
             ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>ShockPatcherToolClientRpc pre123");
-            ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>> held1 " + __instance.playerHeldBy == null);
             ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>> held2 " + netObject == null);
-            if (netObject.TryGet(out var networkObject))
-            {
-                ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<< shock3 " + networkObject.gameObject.GetComponentInChildren<IShockableWithGun>() == null);
-            }
-        }
+ 
+        }*/
         [HarmonyPatch("LateUpdate")]
         [HarmonyPrefix]
-        public static void lupdate(PatcherTool __instance)
+        public static bool lupdate(PatcherTool __instance)
         {
             if (__instance.isShocking == true)
             {
@@ -162,22 +159,64 @@ namespace ShipPlusA.Patches
                 ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<< " + __instance.maxChangePerFrame);
                 ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<< " + __instance.maxChangePerFrame);
                 ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<< " + __instance.maxChangePerFrame);
-            }
-        }
 
+                //Vector3 pos = new Vector3(-5.0311f, 5.4649f, -14.1322f);
+                if (Vector3.Distance(__instance.transform.position, ShipModBase.center) > 2)
+                {
+                    ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<<not our gun");
+                    return true;
+                }
+                ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<<LATE UPDATE pre2222");
+                ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<<script??? " + __instance.shockedTargetScript == null);
+                ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<<aimDirection??? " + __instance.aimDirection.position == null);
+                ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<<lightningDest??? " + __instance.lightningDest.position == null);
+                ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<<bendMultiplier??? " + __instance.bendMultiplier);
+                ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<<transform r??? " + __instance.transform.right == null);
+                ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<<gunRandom??? " + __instance.gunRandom == null);
+                ShipPlusAMod.ShipModBase.Logger.LogInfo("<<<<<<<<<<<<<<<<__instance??? " + (__instance == null));
+                Vector3 shockablePosition = __instance.shockedTargetScript.GetShockablePosition();
+                __instance.lightningDest.position = shockablePosition + new Vector3(UnityEngine.Random.Range(-0.3f, 0.3f), UnityEngine.Random.Range(-0.3f, 0.3f), UnityEngine.Random.Range(-0.3f, 0.3f));
+                __instance.shockVectorMidpoint = Vector3.Normalize(__instance.shockedTargetScript.GetShockableTransform().position - __instance.aimDirection.position);
+                __instance.bendVector = __instance.transform.right * __instance.bendMultiplier;
+                __instance.lightningBend1.position = __instance.aimDirection.position + 0.3f * __instance.shockVectorMidpoint + __instance.bendVector;
+                __instance.lightningBend2.position = __instance.aimDirection.position + 0.6f * __instance.shockVectorMidpoint + __instance.bendVector;
+                if (__instance.bendRandomizerShift < 0f)
+                {
+                    float num = Mathf.Clamp(RandomFloatInRange(__instance.gunRandom, -1f + Mathf.Round(__instance.bendRandomizerShift), 1f) * (__instance.bendChangeSpeedMultiplier * Time.deltaTime), 0f - __instance.maxChangePerFrame, __instance.maxChangePerFrame);
+                    __instance.bendMultiplier = Mathf.Clamp(__instance.bendMultiplier + num, 0f - __instance.bendStrengthCap, __instance.bendStrengthCap);
+                }
+                else
+                {
+                    float num2 = Mathf.Clamp(RandomFloatInRange(__instance.gunRandom, -1f, 1f + Mathf.Round(__instance.bendRandomizerShift)) * (__instance.bendChangeSpeedMultiplier * Time.deltaTime), 0f - __instance.maxChangePerFrame, __instance.maxChangePerFrame);
+                    __instance.bendMultiplier = Mathf.Clamp(__instance.bendMultiplier + num2, 0f - __instance.bendStrengthCap, __instance.bendStrengthCap);
+                }
+                __instance.ShiftBendRandomizer();
+                __instance.AdjustDifficultyValues();
+                return false;
+            }
+            return true;
+
+            }
+            private static float RandomFloatInRange(System.Random rand, float min, float max)
+        {
+            return (float)(rand.NextDouble() * (double)(max - min) + (double)min);
+        }
         [HarmonyPatch("ScanGun")]
         [HarmonyPrefix]
         public static bool zapgunPatch(PlayerControllerB ___playerHeldBy, int ___anomalyMask, RaycastHit ___hit, PatcherTool __instance)
         {
-            
+
             ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>>>>>>>CALLED ZIP");
-            Vector3 pos = new Vector3(-5.0311f, 5.4649f, -14.1322f);
-            if (Vector3.Distance(__instance.transform.position, pos) >2)
+            if (Vector3.Distance(__instance.transform.position, ShipModBase.center) >2)
             {
                 ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>>>>>>>NOT THAT POSITION");
                 ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>>>>>>>1 "+ __instance.transform.position.x+" "+__instance.transform.position.y+" "+ __instance.transform.position.z);
-                ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>>>>>>>2 " + pos.x + " " + pos.y + " " + pos.z);
+                ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>>>>>>>2 " + ShipModBase.center.x + " " + ShipModBase.center.y + " " + ShipModBase.center.z);
                 return true;
+            }
+            if (ShipModBase.lights!=null && ShipModBase.lights.areLightsOn)
+            {
+                ShipModBase.lights.SetShipLightsBoolean(false);
             }
             RaycastHit[] raycastEnemies = new RaycastHit[12];
             ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>>>>>>>Scan OWN AAAAA");
@@ -199,7 +238,7 @@ namespace ShipPlusA.Patches
                 float radius = 25f;
 
                 // Użyj SphereCast
-                Collider[] hitColliders = Physics.OverlapSphere(pos, radius);
+                Collider[] hitColliders = Physics.OverlapSphere(ShipModBase.center, radius);
 
                 // Iteruj przez znalezione collidery
                 foreach (var hitCollider in hitColliders)
@@ -215,7 +254,7 @@ namespace ShipPlusA.Patches
                     {
                         Vector3 shockablePosition = shockableComponent.GetShockablePosition();
                         ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>>>>>>>>Got shockable transform name : " + shockableComponent.GetShockableTransform().gameObject.name);
-
+                        
                         // Sprawdź, czy to jest instancja PlayerControllerB
                         if (shockableComponent is PlayerControllerB)
                         {
@@ -224,36 +263,55 @@ namespace ShipPlusA.Patches
 
                             if ((playerController.isInHangarShipRoom))
                             {
-                                ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>jest w statku");
+                                ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>jest w statku, skip");
+                                
                             }
                             else
                             {
                                 ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>NIE jest w statku");
 
                                 ShipModBase.entities.Add(shockableComponent);
-                                // Tutaj możesz wykonać operacje dla obiektów wokół HangarShipDoor
-                                // ...
-                                // Przykład: Uruchom Coroutine fire, jeśli znajdziesz PatcherTool
-                                PatcherTool tool = __instance;
-                                if (tool != null)
-                                {
 
-                                    tool.timesUsed++;
-                                    tool.sentStopShockingRPC = false;
-                                    tool.gunRandom = new System.Random(tool.playerHeldBy.playersManager.randomMapSeed + tool.timesUsed);
-                                    tool.gunOverheat = 0f;
-                                    tool.shockedTargetScript = shockableComponent;
-                                    tool.currentDifficultyMultiplier = shockableComponent.GetDifficultyMultiplier();
-                                    tool.InitialDifficultyValues();
-                                    tool.bendMultiplier = 0f;
-                                    tool.bendRandomizerShift = 0f;
 
-                                    tool.insertedBattery.charge = 1;
-                                    tool.insertedBattery.empty = false;
-                                    tool.StartCoroutine(fire(tool, shockableComponent, 3f));
-                                }
+                                __instance.timesUsed++;
+                                __instance.sentStopShockingRPC = false;
+                                __instance.gunRandom = new System.Random(__instance.playerHeldBy.playersManager.randomMapSeed + __instance.timesUsed);
+                                __instance.gunOverheat = 0f;
+                                __instance.shockedTargetScript = shockableComponent;
+                                __instance.currentDifficultyMultiplier = shockableComponent.GetDifficultyMultiplier();
+                                __instance.InitialDifficultyValues();
+                                __instance.bendMultiplier = 0f;
+                                __instance.bendRandomizerShift = 0f;
+
+                                __instance.insertedBattery.charge = 1;
+                                __instance.insertedBattery.empty = false;
+                                __instance.StartCoroutine(fire(__instance, shockableComponent, 1.5f));
                             }
                         }
+                        else
+                        {
+                            ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>znaleziono monstera");
+
+                            ShipModBase.entities.Add(shockableComponent);
+                            __instance.timesUsed++;
+                            __instance.sentStopShockingRPC = false;
+                            __instance.gunRandom = new System.Random(__instance.playerHeldBy.playersManager.randomMapSeed + __instance.timesUsed);
+                            __instance.gunOverheat = 0f;
+                            __instance.shockedTargetScript = shockableComponent;
+                            __instance.currentDifficultyMultiplier = shockableComponent.GetDifficultyMultiplier();
+                            __instance.InitialDifficultyValues();
+                            __instance.bendMultiplier = 0f;
+                            __instance.bendRandomizerShift = 0f;
+
+                            __instance.insertedBattery.charge = 1;
+                            __instance.insertedBattery.empty = false;
+                            __instance.StartCoroutine(fire(__instance, shockableComponent, 1f));
+                        }
+
+
+                        
+
+
 
                         ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>>>>>leci shock");
                     }
