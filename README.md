@@ -8,9 +8,9 @@ This mod should allow players to buy ship protection in LETHAL COMPANY
 
 ## DEMO
 
-<video width="320" height="240" controls>
-  <source src="lethal.mp4" type="video/mp4">
-</video>
+
+https://github.com/MrPatryk/AShip/assets/22443877/54fd5a64-697f-4e32-b02a-209126a49f11
+
 
 ## TO-DO:
 - 1 stun per round
