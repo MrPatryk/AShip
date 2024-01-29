@@ -1,5 +1,5 @@
-# AShip
-This mod should allow players to buy ship protection.
+# AShip for Lethal Company
+This mod should allow players to buy ship protection in LETHAL COMPANY
 
 ## Terminal Commands
 
