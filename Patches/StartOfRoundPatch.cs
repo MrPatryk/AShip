@@ -1,6 +1,8 @@
 ﻿using GameNetcodeStuff;
 using HarmonyLib;
 using LC_API.GameInterfaceAPI.Features;
+using ShipPlusA.Scripts;
+using ShipPlusAMod;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,37 +16,44 @@ namespace ShipPlusA.Patches
     [HarmonyPatch(typeof(StartOfRound))]
     internal class StartOfRoundPatch
     {
-     /*   public static bool HostCheck => NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsServer;
-
+        public static bool HostCheck => NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsServer;
+        public static List<GameObject> laser = new List<GameObject>();
 
         [HarmonyPatch("openingDoorsSequence")]
         [HarmonyPostfix]
         static void refr(ref RoundManager __instance)
         {
-            ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>open door call");
-            if (HostCheck) return;
-            Vector3 front = new Vector3(-5.0311f, 5.4649f, -14.1322f);
-            Vector3 center = new Vector3(0f, 6.3623f, -12.0808f);
-            Collider[] hitColliders = Physics.OverlapSphere(center, 3f);
+            if(ShipModBase.checkShow()) if(ShipPlusAMod.ShipModBase.checkShow()) ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>open door call");
+            if(ShipPlusAMod.ShipModBase.checkShow()) ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>check host");
+            //if (HostCheck) return;
+            if(ShipPlusAMod.ShipModBase.checkShow()) ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>host ...");
+            Transform existingChild = __instance.transform.Find("LightningScript");
 
-            // Iteruj przez znalezione collidery
-            foreach (var hitCollider in hitColliders)
+            if(ShipPlusAMod.ShipModBase.checkShow()) ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>check");
+            if (existingChild == null)
             {
-                // Uzyskaj transformację hitCollidera
-                Transform hitTransform = hitCollider.transform;
-
-                // Sprawdź, czy collider zawiera komponent IShockableWithGun
-                PatcherTool gun = hitTransform.GetComponent<PatcherTool>();
-
-                // Jeśli znaleziono IShockableWithGun i można go zelektryzować
-                if (gun != null)
+                if(ShipPlusAMod.ShipModBase.checkShow()) ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>nie ma dziecka, tworze");
+                for (int i = 0; i < ShipModBase.upgrades[ShipModBase.upgradeLevel].amount; i++)
                 {
-                    gun.GetComponent<PatcherTool>().playerHeldBy = Player.HostPlayer.PlayerController;
-                    RoundManagerPatch.lasers.Add(hitTransform.gameObject);
+                    GameObject childOb = i == 0 ? new GameObject("LightningScript") : new GameObject("LightningScript" + i);
+                    childOb.AddComponent<LightningScript>();
+                    childOb.transform.SetParent(__instance.transform);
+                    laser.Add(childOb);
                 }
+
             }
-            ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>lasers: " + RoundManagerPatch.lasers.Count + " / " + hitColliders.Length);
-            return;
-        }*/
+            else
+            {
+                if(ShipPlusAMod.ShipModBase.checkShow()) ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>ma juz dziecko");
+
+            }
+        }
+        [HarmonyPatch("ShipHasLeft")]
+        [HarmonyPostfix]
+        static void refclose(ref RoundManager __instance)
+        {
+            if(ShipPlusAMod.ShipModBase.checkShow()) ShipPlusAMod.ShipModBase.Logger.LogInfo(">>>>>>>>>>>>>>>close door call");
+            laser.Clear();
+        }
     }
 }
