@@ -16,3 +16,5 @@ https://github.com/MrPatryk/AShip/assets/22443877/54fd5a64-697f-4e32-b02a-209126
 - 1 stun per round
 - it should turn off light inside ship after using that
 - replace model of gun to "lasers turret" kinda
+
+![ss123](https://github.com/MrPatryk/AShip/assets/22443877/65645ece-38f1-4aff-8eeb-461b1bd6502c)
