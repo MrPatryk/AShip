@@ -64,6 +64,10 @@
     <Reference Include="LC_API">
       <HintPath>..\..\..\..\AppData\Roaming\Thunderstore Mod Manager\DataFolder\LethalCompany\profiles\v2\BepInEx\plugins\2018-LC_API\LC_API.dll</HintPath>
     </Reference>
+    <Reference Include="LethalNetworkAPI, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\Downloads\debug-build\LethalNetworkAPI.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -90,12 +94,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Patches\PatcherToolPatch.cs" />
-    <Compile Include="Patches\PlayerControllerBPatch.cs" />
-    <Compile Include="Patches\RoundManagerPatch.cs" />
     <Compile Include="Patches\StartOfRoundPatch.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Scripts\LightningScript.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
