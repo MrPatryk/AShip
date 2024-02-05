@@ -18,7 +18,7 @@ namespace ShipPlusA.Scripts
         public Vector3 endLocation;
         public static float duration = 6f;
         public int amount = 4;
-        public List<Transform> lineObjects; // Puste obiekty będące rodzicami Cylinderów
+        public List<Transform> lineObjects;
         public List<LineRenderer> lineRenderers;
         public static float noiseScale = 20f;
         public bool shootingAlready = false;
@@ -141,7 +141,6 @@ namespace ShipPlusA.Scripts
 
             if (childCount != positions.Length)
             {
-                // Dodaj lub usuń dzieci, aby dopasować do liczby punktów trasy
                 while (lineObject.childCount < positions.Length)
                 {
                     GameObject cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);

@@ -42,19 +42,21 @@ namespace ShipPlusAMod
         private const int spawnAmount = 5;
         private static int zapGunID = 15;
         public static List<GameObject> lasers = new List<GameObject>();
+        public static List<ushort> shockingEntities = new List<ushort>();
         private readonly Harmony harmony = new Harmony(modGUID);
         private static ShipModBase Instance;
-        public static List<IShockableWithGun> entities = new List<IShockableWithGun>();
         public static ShipLights lights;
         public static int upgradeLevel = 0;
         public static bool HostCheck => NetworkManager.Singleton.IsHost || NetworkManager.Singleton.IsServer;
         internal static ManualLogSource Logger;
         static ShipLights shipLightsScript = null;
-        static bool canUse=true;
+        static int used=0;
         LethalServerMessage<GameObject> serverShockMessage = new LethalServerMessage<GameObject>("shock");
         LethalClientMessage<GameObject> clientShockMessage = new LethalClientMessage<GameObject>("shock", onReceivedFromClient: RShock);
         LethalClientMessage<int> clientBalanceMessage = new LethalClientMessage<int>("balance", onReceivedFromClient: updateBalance);
         LethalClientMessage<int> clientUpgradeMessage = new LethalClientMessage<int>("upgrade", onReceivedFromClient: updateUpgrade);
+        LethalClientMessage<int> clientUpdateUsesMessage = new LethalClientMessage<int>("uses", onReceivedFromClient: updateUses);
+        LethalClientMessage<float> clientUpdateCountDown = new LethalClientMessage<float>("cd", onReceivedFromClient: updateCd);
         //config
         private static ConfigEntry<bool> configDebug;
         public static bool checkShow()
@@ -78,10 +80,10 @@ namespace ShipPlusAMod
             //setup upgrades
             // amount = max amount of targets
             // radius = radius of looking for target around ship
-            upgrades.Add(new Upgrades { amount = 2, radius = 25f, price = 0, time = 3 });
-            upgrades.Add(new Upgrades { amount = 3, radius = 35f, price = 750, time = 4 });
-            upgrades.Add(new Upgrades { amount = 5, radius = 40f, price = 850, time = 5 });
-            upgrades.Add(new Upgrades { amount = 7, radius = 50f, price = 1200, time = 8 });
+            upgrades.Add(new Upgrades { amount = 2, radius = 25f, price = 0, time = 3, uses=2 });
+            upgrades.Add(new Upgrades { amount = 3, radius = 35f, price = 750, time = 4, uses = 2 });
+            upgrades.Add(new Upgrades { amount = 5, radius = 40f, price = 850, time = 5, uses = 3 });
+            upgrades.Add(new Upgrades { amount = 7, radius = 50f, price = 1200, time = 8, uses = 3 });
 
 
             Logger = BepInEx.Logging.Logger.CreateLogSource(modGUID);
@@ -110,17 +112,17 @@ namespace ShipPlusAMod
                 {
                     if (bought == false)
                     {
-                        return "You have to buy ZAP WAVE first to upgrade it";
+                        return "You have to buy ZAP WAVE first to upgrade it\n";
                     }
                     if (upgradeLevel == upgrades.Count - 1)
                     {
-                        return "You already got MAX upgraded ZAP WAVE";
+                        return "You already got MAX upgraded ZAP WAVE\n";
                     }
                     Terminal terminal = UnityEngine.Object.FindObjectOfType<Terminal>();
-                    if (terminal.groupCredits < upgrades[upgradeLevel+1].price) return "Not enoguh credits to buy\nPrice *"+ upgrades[upgradeLevel + 1].price+"*";
+                    if (terminal.groupCredits < upgrades[upgradeLevel+1].price) return "Not enoguh credits to buy\nPrice *"+ upgrades[upgradeLevel + 1].price+"*\n";
                     if(checkShow())Logger.LogWarning("Bought ZAP Wave upgrade");
                     upgradeLevel += 1;
-                    clientBalanceMessage.SendAllClients(upgrades[upgradeLevel].price);
+                    clientBalanceMessage.SendAllClients(terminal.groupCredits-upgrades[upgradeLevel].price);
                     clientUpgradeMessage.SendAllClients(upgradeLevel);
                     return "Bought ZAP WAVE upgrade\nRadius " + upgrades[upgradeLevel].radius + "\nShock time " + upgrades[upgradeLevel].time + "\nTargets " + upgrades[upgradeLevel].amount + "\n";
                 },
@@ -137,10 +139,24 @@ namespace ShipPlusAMod
                      {
                          return "You need to buy it first...\n";
                     }
+                    if (used >= upgrades[upgradeLevel].uses)
+                    {
+                        return "The ship's energy is almost exhausted!\nYou can't use it now\n";
+                    }
+                    if (!StartOfRoundPatch.moznaUzyc)
+                    {
+                        return "You need to wait "+ StartOfRoundPatch.czasDoOdblokowania.ToString("F1") + "s before using wave again\n";
+                    }
                     PlayerControllerB objectName = StartOfRound.Instance.localPlayerController;
 
                     if (checkShow()) Logger.LogWarning(">>>>>>>>>>> name "+ objectName);
                     var (targets, enemyAITargets) = getShockableAround();
+                    targets = targets.OrderBy(e => Vector3.Distance(e.GetShockableTransform().transform.position, center)).ToArray();
+                    enemyAITargets = enemyAITargets.OrderBy(e => Vector3.Distance(e.transform.position, center)).ToArray();
+                    if(targets.Length==0 && enemyAITargets.Length == 0)
+                    {
+                        return "There are no targets around the ship to zap\n";
+                    }
                     for (int i = 0; i < targets.Length; i++)
                     {
                         clientShockMessage.SendAllClients(targets[i].GetShockableTransform().gameObject);
@@ -149,7 +165,10 @@ namespace ShipPlusAMod
                     {
                         clientShockMessage.SendAllClients(enemyAITargets[i].gameObject);
                     }
-                    return "Used ZAP WAVE\n\n Stunned: \npl: "+ targets.Count()+"\n enemies: "+(enemyAITargets.Count());
+
+                    clientUpdateUsesMessage.SendAllClients(used+1);
+                    clientUpdateCountDown.SendAllClients(upgrades[upgradeLevel].time+2);
+                    return "Used ZAP WAVE\n\n Try stun (max" + upgrades[upgradeLevel].amount +" targets): \npl: "+ targets.Count()+"\n enemies: "+(enemyAITargets.Count())+"\nUsed waves ["+ used+ "/"+ upgrades[upgradeLevel].uses+ "]\n";
                 },
                 Category = "Other",
                 Description = "Use ZAP WAVE to protect allies before they die!!!"
@@ -187,6 +206,7 @@ namespace ShipPlusAMod
             }
             else
             {
+                if (checkShow()) Logger.LogWarning(">>>>>>>>>>>>rpc for player only ");
                 shootClient(objs.GetComponent<PlayerControllerB>(), clientId.GetPlayerController());
             }
         }
@@ -198,18 +218,19 @@ namespace ShipPlusAMod
             List<EnemyAI> enemies = new List<EnemyAI>();
             // Użyj SphereCast
             Collider[] hitColliders = Physics.OverlapSphere(ShipModBase.center, radius);
-
+            shockingEntities.Clear();
             // Iteruj przez znalezione collidery
             foreach (var hitCollider in hitColliders)
             {
                 Transform hitTransform = hitCollider.transform;
                 IShockableWithGun shockableComponent = hitTransform.GetComponent<IShockableWithGun>();
                 EnemyAI enemyAiComponent = hitTransform.GetComponent<EnemyAI>();
-                if (enemyAiComponent!=null&& enemyAiComponent.stunnedByPlayer==null)
+                if (enemyAiComponent!=null&& enemyAiComponent.stunnedByPlayer==null && !shockingEntities.Contains(enemyAiComponent.NetworkBehaviourId))
                 {
                     enemies.Add(enemyAiComponent);
+                    shockingEntities.Add(enemyAiComponent.NetworkBehaviourId);
                 }
-                if (shockableComponent != null && shockableComponent.CanBeShocked() && !ShipModBase.entities.Contains(shockableComponent))
+                if (shockableComponent != null && shockableComponent.CanBeShocked())
                 {
                     Vector3 shockablePosition = shockableComponent.GetShockablePosition();
 
@@ -217,9 +238,10 @@ namespace ShipPlusAMod
                     {
                         PlayerControllerB playerController = (PlayerControllerB)shockableComponent;
 
-                        if (!(playerController.isInHangarShipRoom))
+                        if (!(playerController.isInHangarShipRoom) && !shockingEntities.Contains(playerController.NetworkBehaviourId))
                         {
                             targets.Add(playerController);
+                            shockingEntities.Add(playerController.NetworkBehaviourId);
                         }
                     }
                     else
@@ -228,6 +250,7 @@ namespace ShipPlusAMod
                     }
                 }
             }
+            shockingEntities.Clear();
             return (targets.ToArray(), enemies.ToArray());
         }
 
@@ -264,9 +287,9 @@ namespace ShipPlusAMod
             if (myScriptObject != null)
             {
 
-                if (checkShow()) Logger.LogWarning(">>>>>>>> script nie jest null");
+                if (checkShow()) Logger.LogWarning(">>>>>>>> script not null");
                 myScriptObject.SetActive(true);
-                if (checkShow()) Logger.LogWarning(">>>>>>>> strzelam");
+                if (checkShow()) Logger.LogWarning(">>>>>>>> shot");
                 LightningScript sc = myScriptObject.GetComponent<LightningScript>();
                 if (checkShow()) Logger.LogWarning(">>>>>>>> check " + (sc == null));
                 sc.StartCoroutine(shoot(sc, target,sender));
@@ -275,25 +298,39 @@ namespace ShipPlusAMod
             else
             {
 
-                if (checkShow()) Logger.LogWarning(">>>>>>>> script null, nie ma wolnego lasera z "+ StartOfRoundPatch.laser.Count);
+                if (checkShow()) Logger.LogWarning(">>>>>>>> script null, not free laser from count of "+ StartOfRoundPatch.laser.Count);
             }
         }
 
         public static void updateBalance(int balance, ulong clientId)
         {
-            if(checkShow())Logger.LogInfo("===============sync balance===============");
-            if (bought == false) bought = true;
+            if (checkShow()) Logger.LogInfo("===============sync balance===============");
+            if (bought == false) { 
+                bought = true;
+                RoundManager.Instance.StartCoroutine(StartOfRoundPatch.reCreateLasers(RoundManager.Instance));
+            }
             Terminal terminal = UnityEngine.Object.FindObjectOfType<Terminal>();
-            if(checkShow())Logger.LogInfo("===============null???? =============== " + (terminal == null));
+            if (checkShow()) Logger.LogInfo("===============null???? =============== " + (terminal == null));
             terminal.groupCredits = balance;
+        }
+        public static void updateUses(int uses, ulong clientId)
+        {
+            if (checkShow()) Logger.LogInfo("===============sync uses==============="+used);
+            used = uses;
+        }
+        public static void updateCd(float cd, ulong clientId)
+        {
+            if (checkShow()) Logger.LogInfo("===============sync cd==============="+cd);
+            StartOfRoundPatch.coundDown(cd);
         }
         public static void updateUpgrade(int level, ulong clientId)
         {
             if(checkShow())Logger.LogInfo("===============sync level=============== "+level);
             if (bought == false) bought = true;
             if(checkShow())Logger.LogInfo("===============null???? =============== ");
+            RoundManager.Instance.StartCoroutine(StartOfRoundPatch.reCreateLasers(RoundManager.Instance));
             upgradeLevel = level;
-            canUse = true;
+            used = 0;
         }
 
         public class BalanceNetwork
@@ -309,6 +346,7 @@ namespace ShipPlusAMod
             public float radius;
             public int amount;
             public float time;
+            public float uses;
             public int price;
         }
     }
